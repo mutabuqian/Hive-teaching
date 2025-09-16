@@ -178,7 +178,7 @@ sudo cat var/log/mysql/mysqld.log
 #connect mysql
 mysql -h localhost -u root
 #update the password
-alter user 'root'#'localhost' identified by '123456';
+alter user 'root'@'localhost' identified by '123456';
 ```
 
 
@@ -244,16 +244,20 @@ show databases;
 
 ## 网络配置
 
-主机名
+分别更改三台虚拟机的主机名为**Master，Worker1，Worker2**
 
 ```shell
-#update hostname
+#update hostname 
 sudo vim /etc/hostname
-#infor
+#虚拟机Master
 Master
+#虚拟机Worker1
+Worker1
+#虚拟机Worker2
+Worker2
 ```
 
-hosts 文件配置 ip maps to hostname, then reboot
+hosts 文件配置，将IP和主机名映射，都要在三台虚拟机配置
 
 ```shell
 sudo vim /etc/hosts
@@ -264,7 +268,11 @@ sudo vim /etc/hosts
 
 ```
 
-## login without password 
+
+
+## 免密登录
+
+三台虚拟机可以ping通，如何互相操作？用ssh连接控制，ssh每次需要密码，设置**免密登录**无需密码
 
 use key pair, public key and private key, the place to store the key
 
@@ -286,18 +294,36 @@ exit
 
 ## 部署Hadoop完全分布式集群
 
-三台电脑安装jdk和Hadoop
+之前伪分布就用到一台虚拟机，真正的Hadoop应该在多台虚拟机部署，此处在三台虚拟机部署，他们的主机名分别为Master，Worker1，Worker2
 
-配置workers文件
+三台虚拟机都要安装jdk和Hadoop
 
+在**Master虚拟机**配置workers文件：在为Master，Worker1，Worker部署，但是它们自己不知道，得告诉它们，怎样告诉？修改配置文件。文件在哪？
 
+```shell
+#文件在哪
+cd /usr/local/hadoop/etc/hadoop/
+vim workers
+#清空文件内容后添加下面信息
+Master
+Worker1
+Worker2
+
+```
+
+在**Master虚拟机上**分别配置core-site.xml，hdfs-site.xml，mapred-site.xml，yarn-site.xml，这些文件在哪？
+
+```shell
+#文件在哪？
+cd /usr/local/hadoop/etc/hadoop/
+```
 
 core-site.xml
 
 ```xml
 <property>
         <name>fs.defaultFS</name>
-        <value>hdfs://Master:9000</value>
+        <value>hdfs://Master</value>
     </property>
     <property>
         <name>hadoop.tmp.dir</name>
@@ -332,7 +358,6 @@ hdfs-site.xml
 <name>dfs.nameservices</name>
 <value>Master</value>
 </property>
-<configuration>
     <property>
         <name>dfs.namenode.secondary.http-address</name>
         <value>Master:50090</value>
@@ -340,6 +365,8 @@ hdfs-site.xml
 ```
 
 mapred-site.xml
+
+
 
 ```xml
 <property>
@@ -369,33 +396,46 @@ yarn-site.xml
 </property>
 ```
 
-将/**etc/hadoop/**下的文件复制到**Worker1**和**Worker2**中
+在**Master虚拟机**将/**etc/hadoop/**下的文件复制到**Worker1**和**Worker2**中
 
+```shell
+scp -r /usr/local/hadoop/etc/hadoop/* Worker1:/usr/local/hadoop/etc/hadoop/
+scp -r /usr/local/hadoop/etc/hadoop/* Worker2:/usr/local/hadoop/etc/hadoop/
 ```
 
+在**Master虚拟机**格式化**namenode**
+
+```shell
+hdfs namenode -format
 ```
 
-格式化**namenode**
+在**Master虚拟机**启动**hdfs**和**Yarn**
 
-```
-
-```
-
-启动**hdfs**和**Yarn**
-
-```
-
+```shell
+start-dfs.sh
+start-yarn.sh
 ```
 
 查看进程
 
 ```shell
+#master
+jps
+
+```
+
+![image-20250916142039484](C:\Users\17274\Documents\zly\亚视演艺\25-26 第1学期\hive数据仓库\选用\assets\image-20250916142039484.png)
+
+```shell
+#Worker1,Worker2
 jps
 ```
 
+
+
 ## 部署HiveServer2和Beeline
 
-**core-site.xml**追加如下内容
+master、Worker1、Worker2虚拟机上的**core-site.xml**添加如下内容
 
 ```xml
 <property>
@@ -410,14 +450,29 @@ jps
 
 重启集群
 
+```
+stop-all.sh
+start-dfs.sh
+start-yarn.sh
+```
+
 在Worker1用本地模式部署Hive
 
 Worker2中安装Hive
 
 修改Worker1上的MySQL权限，使得任何主机可以访问Worker1上的Mysql
 
+```shell
+#login in mysql
+mysql -u root -p
+#enter password
+```
+
+修改权限
+
 ```sql
-update user set host="#" where user="root";
+use mysql;
+update user set host="%" where user="root";
 flush privileges;
 ```
 
@@ -433,11 +488,37 @@ hiveserver2
 jps
 ```
 
+![image-20250916141944729](C:\Users\17274\Documents\zly\亚视演艺\25-26 第1学期\hive数据仓库\选用\assets\image-20250916141944729.png)
+
 **Worker2**元数据存在**服务**端**Worker1**中：关闭本地meta store服务，连接Worker1
 
+```shell
+cd /usr/local/hive/conf/
+#打开该文件，若不为空则清空，然后添加以下信息
+vim hive-site.xml
 ```
 
+```xml
+ 1 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+  2 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+  3 <configuration>
+  4   <property>
+  5       <name>hive.metastore.local</name>
+  6       <value>false</value>
+  7   </property>
+  8   <property>
+  9       <name>hive.metastore.uris</name>
+ 10       <value>thrift://Worker1:9083</value>
+ 11   </property>
+ 12 </configuration>
+
 ```
+
+
 
 Worker1启动Beeline连接Worker2的HiveServer2服务
+
+```shell
+beeline --hiveconf hive.server2.logging.operation.level=NONE -u jdbc:hive2://Worker1:10000 -n zly -p
+```
 
