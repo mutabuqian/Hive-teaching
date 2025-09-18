@@ -424,7 +424,7 @@ jps
 
 ```
 
-![image-20250916142039484](C:\Users\17274\Documents\zly\亚视演艺\25-26 第1学期\hive数据仓库\选用\assets\image-20250916142039484.png)
+![image-20250916142039484](.\assets\image-20250916142039484.png)
 
 ```shell
 #Worker1,Worker2
@@ -476,16 +476,10 @@ update user set host="%" where user="root";
 flush privileges;
 ```
 
-启动HiveServer2服务
+在**Worker1**启动HiveServer2服务
 
 ```shell
 hiveserver2
-```
-
-启动metastore
-
-```shell
-hive --service metastore
 ```
 
 是否正常启动
@@ -494,7 +488,7 @@ hive --service metastore
 jps
 ```
 
-![image-20250916141944729](C:\Users\17274\Documents\zly\亚视演艺\25-26 第1学期\hive数据仓库\选用\assets\image-20250916141944729.png)
+![image-20250916141944729](.\assets\image-20250916141944729.png)
 
 **Worker2**元数据存在**服务**端**Worker1**中：关闭本地meta store服务，连接Worker1
 
@@ -528,9 +522,26 @@ Worker1启动Beeline连接Worker2的HiveServer2服务
 beeline --hiveconf hive.server2.logging.operation.level=NONE -u jdbc:hive2://Worker1:10000 -n zly -p
 ```
 
+## 定义源数据层的存储结构
+
+```sql
+show databases;--结果如下
+```
+
+![image-20250917230347091](./assets/image-20250917230347091.png)
+
+```sql
+create database if not exists movies_ods_database;
+show database;----结果如下
+```
+
+![image-20250917230830908](./assets/image-20250917230830908.png)
+
+
+
 ## QA
 
-metastore出现如下bug
+### Q1启动metastore出现如下bug
 
 ```shell
 MetaException(message:Required table missing : "`DBS`" in Catalog "" Schema "". DataNucleus requires this table to perform its persistence operations. Either your MetaData is incorrect, or you need to enable "datanucleus.schema.autoCreateTables")
@@ -578,12 +589,22 @@ org.datanucleus.store.rdbms.exceptions.MissingTableException: Required table mis
 	...
 ```
 
-打开hive-site.xml,添加下面内容
+A打开hive-site.xml,添加下面内容
 
 ```xml
 <property>
     <name>datanucleus.schema.autoCreateAll</name>
     <value>true</value>
  </property>
+```
+
+
+
+### Q2Worker1连接出现connection refused
+
+A在**Worker2**启动metastore
+
+```shell
+hive --service metastore
 ```
 

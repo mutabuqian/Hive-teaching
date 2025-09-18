@@ -1,0 +1,38 @@
+package cn.jqe.hive;
+//导入所需的依赖项
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
+import org.apache.hadoop.hive.serde2.objectinspector.*;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.*;
+import java.util.*;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+//定义Java类hiveUDTF，并继承GenericUDTF类
+public class hiveUDTF extends GenericUDTF {
+	//定义两个变量listOI和stringOI
+	private ListObjectInspector listOI;
+	private StringObjectInspector stringOI;
+	//重写initialize()方法
+	public StructObjectInspector initialize(ObjectInspector[] args)  {
+		listOI = (ListObjectInspector) args[0];
+		stringOI = (StringObjectInspector)listOI.getListElementObjectInspector();
+		List<String> fieldNames = new ArrayList<>();
+		List<ObjectInspector> fieldOIs = new ArrayList<>();
+		fieldNames.add("element");
+		fieldOIs.add(stringOI);
+		return ObjectInspectorFactory.getStandardStructObjectInspector(fieldNames, fieldOIs);
+	}
+	//重写process()方法
+	public void process(Object[] args) throws HiveException {
+		List<?> array = listOI.getList(args[0]);
+		if (array == null) {
+		return;
+		}
+		//循环遍历数组中的每个元素
+		for (Object element : array) {
+			//使用forward()方法输出每个元素
+			forward(new Object[]{element});
+		}
+	}
+	//重写close()方法
+	public void close()  {
+	}
+}
