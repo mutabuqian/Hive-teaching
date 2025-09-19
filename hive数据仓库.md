@@ -2,7 +2,9 @@
 
 [Markdown Online - 专业在线 Markdown 编辑器](https://www.markdownonline.net/zh/)
 
-## 安装jdk
+## Hive嵌入模式
+
+### 安装jdk
 
 ```shell
 cd /usr/lib
@@ -15,7 +17,7 @@ export PATH=${JAVA_HOME}/bin:$PATH
 source ~/.bashrc
 ```
 
-## 安装Hadoop  
+### 安装Hadoop  
 
 ```shell
  
@@ -43,7 +45,7 @@ source ~/.bashrc
 
 ```
 
-## 部署Hadoop伪分布式集群
+### 部署Hadoop伪分布式集群
 
 ```shell
 
@@ -126,7 +128,7 @@ stop-dfs.sh
 stop-yarn.sh
 ```
 
-## 安装Hive
+### 安装、配置Hive
 
 ```shell
 sudo tar -zxf apache-hive-4.0.1-bin.tar.gz  -C /usr/local/
@@ -160,7 +162,13 @@ export HIVE_CONF_DIR=/usr/local/hive/conf
 schematool -initSchema -dbType derby
 ```
 
-## 安装MySQL
+
+
+## Hive本地模式
+
+Hive本地模式同样需要jdk、Hadoop，具体操作参考Hive嵌入模式内容。除此之外，Hive本地模式使用MySQL存储元数据，因此要安装MySQL。
+
+### 安装MySQL
 
 ```shell
 #acquire MySQL connector
@@ -178,23 +186,24 @@ sudo cat var/log/mysql/mysqld.log
 #connect mysql
 mysql -h localhost -u root
 #update the password
-alter user 'root'@'localhost' identified by '123456';
+alter user 'root'@'localhost' identified by '172741';
 ```
 
 
 
-
-
-## 配置MySQL保存Hive元数据
+### 配置MySQL保存Hive元数据
 
 ```shell
-
+#学过JDBC的同学应该熟悉下面的jar包，没错hive连接数据库需要用到其他外力，就是下面的jar包
 cp mysql-connector-j.jar /usr/local/hive/lib/
 ```
 
 配置hive-site.xml
 
 ```shell
+#该配置文件所在路径
+cd /usr/local/hive/conf
+#打开该文件，添加下面内容
 vim hive-site.xml
 ```
 
@@ -242,9 +251,13 @@ show databases;
 
 ```
 
-## 网络配置
+## Hive远程模式
 
-分别更改三台虚拟机的主机名为**Master，Worker1，Worker2**
+远程模式需要多台虚拟机，这里我们用三台，他们的主机名分别是**Master，Worker1，Worker2**
+
+### 网络配置
+
+分别更改**三台虚拟机**的主机名为**Master，Worker1，Worker2**
 
 ```shell
 #update hostname 
@@ -257,7 +270,7 @@ Worker1
 Worker2
 ```
 
-hosts 文件配置，将IP和主机名映射，都要在三台虚拟机配置
+hosts 文件配置，将IP和主机名映射，都要在**三台虚拟机**配置
 
 ```shell
 sudo vim /etc/hosts
@@ -270,7 +283,7 @@ sudo vim /etc/hosts
 
 
 
-## 免密登录
+### 免密登录
 
 三台虚拟机可以ping通，如何互相操作？用ssh连接控制，ssh每次需要密码，设置**免密登录**无需密码
 
@@ -279,6 +292,8 @@ use key pair, public key and private key, the place to store the key
 ```shell
 #generate key
 ssh-keygen -t rsa
+#生成的密钥在哪
+cd ~/.ssh/
 #authorize the public key
 cat id_rsa.pub  >> authorized_keys
 #distribute public key
@@ -292,7 +307,7 @@ ssh Worker1
 exit
 ```
 
-## 部署Hadoop完全分布式集群
+### 部署Hadoop完全分布式集群
 
 之前伪分布就用到一台虚拟机，真正的Hadoop应该在多台虚拟机部署，此处在三台虚拟机部署，他们的主机名分别为Master，Worker1，Worker2
 
@@ -364,9 +379,7 @@ hdfs-site.xml
     </property>
 ```
 
-mapred-site.xml
-
-
+mapred-site.xm
 
 ```xml
 <property>
@@ -433,7 +446,7 @@ jps
 
 
 
-## 部署HiveServer2和Beeline
+### 部署HiveServer2和用Beeline远程连接
 
 master、Worker1、Worker2虚拟机上的**core-site.xml**添加如下内容
 
@@ -521,6 +534,51 @@ Worker1启动Beeline连接Worker2的HiveServer2服务
 ```shell
 beeline --hiveconf hive.server2.logging.operation.level=NONE -u jdbc:hive2://Worker1:10000 -n zly -p
 ```
+
+## 数据库的基本操作
+
+创建
+
+```hive
+create database hive_test
+comment "this database is for test"
+with properties ("creator"="hive")
+```
+
+删除
+
+```hive
+drop database hive_test;
+```
+
+修改
+
+```hive
+alter database hive_test;
+```
+
+查看
+
+```hive
+describe database hive_test;
+```
+
+显示所有数据库
+
+```hive
+show databases
+```
+
+切换数据库
+
+```hive
+--查看当前使用数据库
+select current_database();
+--使用数据库
+use database_name;
+```
+
+
 
 ## 定义源数据层的存储结构
 
