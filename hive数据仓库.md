@@ -1,4 +1,4 @@
-# Hive数据仓库
+# 项目1
 
 [Markdown Online - 专业在线 Markdown 编辑器](https://www.markdownonline.net/zh/)
 
@@ -512,18 +512,18 @@ vim hive-site.xml
 ```
 
 ```xml
- 1 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-  2 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
-  3 <configuration>
-  4   <property>
-  5       <name>hive.metastore.local</name>
-  6       <value>false</value>
-  7   </property>
-  8   <property>
-  9       <name>hive.metastore.uris</name>
- 10       <value>thrift://Worker1:9083</value>
- 11   </property>
- 12 </configuration>
+ <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+   <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+   <configuration>
+     <property>
+         <name>hive.metastore.local</name>
+        <value>false</value>
+    </property>
+    <property>
+       <name>hive.metastore.uris</name>
+        <value>thrift://Worker1:9083</value>
+   </property>
+ </configuration>
 
 ```
 
@@ -535,65 +535,184 @@ Worker1启动Beeline连接Worker2的HiveServer2服务
 beeline --hiveconf hive.server2.logging.operation.level=NONE -u jdbc:hive2://Worker1:10000 -n zly -p
 ```
 
-## 数据库的基本操作
-
-创建
-
-```hive
-create database hive_test
-comment "this database is for test"
-with properties ("creator"="hive")
-```
-
-删除
-
-```hive
-drop database hive_test;
-```
-
-修改
-
-```hive
-alter database hive_test;
-```
-
-查看
-
-```hive
-describe database hive_test;
-```
-
-显示所有数据库
-
-```hive
-show databases
-```
-
-切换数据库
-
-```hive
---查看当前使用数据库
-select current_database();
---使用数据库
-use database_name;
-```
-
-
+# 项目3
 
 ## 定义源数据层的存储结构
 
-```sql
-show databases;--结果如下
+```shell
+#启动hdfs和yarn
+start-dfs.sh
+start-yarn.sh
+#worker1启动hiveserver2
+hiverserver2
+#worker2连接worker1
+beeline --hiveconf hive.server2.logging.operation.level=NONE -u jdbc:hive2://Worker1:10000 -n zly -p
+```
+
+
+
+```hive
+--结果如下
+show databases;
 ```
 
 ![image-20250917230347091](./assets/image-20250917230347091.png)
 
-```sql
+```hive
+--创建源数据层数据库
 create database if not exists movies_ods_database;
-show database;----结果如下
+--结果如下
+show database;
 ```
 
 ![image-20250917230830908](./assets/image-20250917230830908.png)
+
+```hive
+--切换数据库
+use movies_ods_database;
+--创建电影评分表
+create external table if not exists movies_ods_table(
+	user_id bigint,
+	movie_id bigint,
+	sex string,
+	age int,
+	occupation string,
+	zipcode string,
+	movie_name string,
+	movie_type string,
+	rate double,
+	times string)
+row format serde 'org.apache.hadoop.hive.contrib.serde2.MultiDelimitSerde' with serdeproperties("field.delim" = "::")
+location "/usr/hive_data/movie.db/moive_basic";
+
+show tables;
+describe movies_ods_table;
+```
+
+## 定义明细层存储结构
+
+```hive
+create database if not exists movies_dwd_database;
+use movies_dwd_database;
+create table if not exists movie_dwd_table(
+	user_id bigint,
+	movie_id bigint,
+	sex string,
+	age int,
+	occupation string,
+	zipcode string,
+	movie_name string,
+	movie_type string,
+	rate double,
+	times string)
+partitioned by (release_year string)
+stored as ORC;
+show tables;
+describe movie_dwd_table;
+```
+
+## 定义中间层存储结构
+
+```hive
+create database if not exists movies_dwm_database;
+show databases;
+use movies_dwm_database;
+create table if not exists users_dwm_table(
+	user_id bigint,
+	movie_id bigint,
+	sex string,
+	age int,
+	occupation string,
+	zipcode string)
+partitioned by(sex string)
+stored as ORC;
+create table if not exists movies_dwm_table(
+	movie_id bigint,
+	movie_name string,
+	movie_type string)
+partitioned by(release_year string)
+stored as ORC;
+
+create table if not exist ratings_dwm_table(
+	user_id bigint,
+	movie_id bigint,
+	rate double,
+	times string)
+stored as ORC;
+```
+
+## 定义业务层存储结构
+
+```hive
+create database if not exists movies_dws_database;
+use movies_dws_database;
+create table if not exists ratingsCount_dws_table(
+	ratingCount int,
+	movie_name string,
+	movie_type string,
+	age int,
+	sex string,
+	group_type string comment "1-name 2-type 3-age 4-sex")
+partitioned by (release_year string)
+stored as ORC;
+
+create table if not exists ratingsAvg_dws_table(
+	rating_avg double,
+	movie_name string,
+	movie_type string,
+	group_type string comment "1-name 2-type 3-age 4 sex")
+partitioned by (release_year string)
+stored as ORC;
+
+show tables;
+
+describe ratingsCount_dws_table;
+describe ratingsAvg_dws_table;
+```
+
+# 项目4
+
+向源数据层（在哪？项目3创建的数据库**movies_ods_database**）导入数据（在哪？在**/usr/local/hive/hive_data/movie/ratings.txt**）
+
+```hive
+use movies_ods_database;
+load data local inpath '/usr/local/hive/hive_data/movie/ratings.txt' overwrite into table movies_ods_table;
+select movie_name from movies_ods_table limit 10;
+
+```
+
+源数据层(movies_ods_database.movies_ods_table)->明细层(movies_dwd_database.movies_dwd_table)
+
+```hive
+use  movies_dwd_database;
+add jar /usr/local/hive/lib/hive-contrib-3.1.3.jar;
+insert overwrite table movies_dwd_table partition (release_year)
+select user_id, movie_id, sex, age, occupation, zipcode,
+	substring_index(movie_name, '(', 1) as movie_name, movie_type, rate, times, 
+	substring_index(substring_index(movie_namee, '(', -1), ')', 1) as release_year
+from movies_ods_database.movies_ods_table;
+select * from movies_dwd_table;
+```
+
+中间层导入数据
+
+```hive
+use movies_dwm_database;
+insert into table users_dwm_table partition(sex) select distinct user_id, age, occupation, zipcode, sex from movies_dwd_database.movies_dwd_table;
+select * from users_dwm_table;
+
+insert into table movies_dwm_table partition(release_year) select distinct movie_id, movie_name, movie_type, release_year from movies_dwd_database.movies_dwd_table;
+select * from movies_dwm_table;
+
+insert into table ratings_dwm_table select user_id, movie_id, rate, times from movies_dwd_database.movies_dwd_table;
+```
+
+业务层导入数据
+
+```hive
+use movies_dws_database;
+insert into table ratingsCount_dws_table partition (release_year) select count(*) as ratingCount movie_name,  from movies_dwd_database.movies_dwd_table
+```
 
 
 
