@@ -249,6 +249,12 @@ schematool -initSchema -dbType mysql
 mysql -u root -p
 show databases;
 
+
+# 先删除现有数据库（会丢失所有元数据！）
+mysql -u root -p -e "DROP DATABASE hive; CREATE DATABASE hive;"
+
+# 然后重新初始化
+schematool -dbType mysql -initSchema
 ```
 
 ## Hive远程模式
@@ -783,5 +789,16 @@ A在**Worker2**启动metastore
 
 ```shell
 hive --service metastore
+```
+
+
+
+### 指定字符集
+
+```xml
+<property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:mysql://your-mysql-host:3306/hive_metastore?useSSL=false&amp;characterEncoding=UTF-8</value>
+</property>
 ```
 
