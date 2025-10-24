@@ -785,7 +785,7 @@ A打开hive-site.xml,添加下面内容
 
 ### Q2Worker1连接出现connection refused
 
-A在**Worker2**启动metastore
+A在**Worker1**启动metastore
 
 ```shell
 hive --service metastore
@@ -800,5 +800,37 @@ hive --service metastore
     <name>javax.jdo.option.ConnectionURL</name>
     <value>jdbc:mysql://your-mysql-host:3306/hive_metastore?useSSL=false&amp;characterEncoding=UTF-8</value>
 </property>
+```
+
+# 附录
+
+```hive
+create database hive_database;
+use hive_database;
+create table if not exists internal_table(id int, name string, class string, gender string, hobbies array<string>, coontact_info map<string, string>, address struct<city:string, province:string>) row format delimited fields terminated by ',' collection items terminated by '_' map keys terminated by ':' lines terminated by '\n';
+show tables;
+show tables like 'i*';
+describe internal_table;
+describe formatted internal_table;
+alter table internal_table rename to internal_table_name;
+show tables;
+create table if not exists alter_internal_table(id string, sex string, name string);
+alter table alter_internal_table change sex gender string after name;
+describe alter_internal_table;
+alter table alter_internal_table add columns(age int);
+describe alter_internal_table;
+alter table alter_internal_table replace columns(user_name string, phone string);
+describe alter_internal_table;
+drop table alter_internal_table;
+show tables;
+
+create external table if not exists external_table(id int, name string, class string, gender string, hobbies array<string>, coontact_info map<string, string>, address struct<city:string, province:string>) row format delimited fields terminated by ',' collection items terminated by '_' map keys terminated by ':' lines terminated by '\n' location '/user/hive_external/external_tables';
+show tables;
+create table if not exists partition_table(student_id string, student_name string) partitioned by (college string, class string) row format delimited fields terminated by ',' lines terminated by '\n';
+show tables;
+show partitions partition_table;
+alter table partition_table add partition(college='arts', class='1') location '/user/hive_local/warehouse/hive_database.db/arts' partition(college='english', class='2') '/user/hive_local/warehouse/hive_database.db/english';
+show partitions partition_table;
+describe formatted partition_table partition(college='arts', class='1');
 ```
 
